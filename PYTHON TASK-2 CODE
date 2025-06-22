@@ -1,0 +1,164 @@
+import csv
+from io import StringIO
+from reportlab.lib.pagesizes import LETTER
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+from reportlab.lib import colors
+
+# Sample CSV data as a string
+SAMPLE_CSV_DATA = """\
+Name,Department,Salary,Years_At_Company
+Alice,Engineering,95000,5
+Bob,Marketing,70000,3
+Charlie,Engineering,105000,7
+Diana,HR,65000,2
+Eva,Marketing,72000,4
+Frank,Engineering,98000,6
+Grace,HR,62000,1
+"""
+
+def read_data(csv_string):
+    f = StringIO(csv_string)
+    reader = csv.DictReader(f)
+    data = [row for row in reader]
+    return data
+
+def analyze_data(data):
+    """Analyze salaries and years at company by department and overall."""
+    summary = {
+        'total_employees': 0,
+        'overall_salary_sum': 0,
+        'overall_years_sum': 0,
+        'departments': {}
+    }
+    for row in data:
+        summary['total_employees'] += 1
+        salary = float(row['Salary'])
+        years = float(row['Years_At_Company'])
+        summary['overall_salary_sum'] += salary
+        summary['overall_years_sum'] += years
+        dept = row['Department']
+        if dept not in summary['departments']:
+            summary['departments'][dept] = {
+                'count': 0,
+                'salary_sum': 0,
+                'years_sum': 0
+            }
+        summary['departments'][dept]['count'] += 1
+        summary['departments'][dept]['salary_sum'] += salary
+        summary['departments'][dept]['years_sum'] += years
+
+    # Calculate averages
+    summary['overall_avg_salary'] = summary['overall_salary_sum'] / summary['total_employees'] if summary['total_employees'] else 0
+    summary['overall_avg_years'] = summary['overall_years_sum'] / summary['total_employees'] if summary['total_employees'] else 0
+
+    for dept, vals in summary['departments'].items():
+        vals['avg_salary'] = vals['salary_sum'] / vals['count'] if vals['count'] else 0
+        vals['avg_years'] = vals['years_sum'] / vals['count'] if vals['count'] else 0
+
+    return summary
+
+def generate_pdf_report(data, summary, filename="sample_report.pdf"):
+    doc = SimpleDocTemplate(filename, pagesize=LETTER,
+                            rightMargin=72, leftMargin=72,
+                            topMargin=72, bottomMargin=72)
+    styles = getSampleStyleSheet()
+    # Override styles for report
+    title_style = ParagraphStyle(
+        name='Title',
+        parent=styles['Heading1'],
+        fontSize=24,
+        leading=28,
+        spaceAfter=24,
+        alignment=1,  # center
+    )
+    header_style = ParagraphStyle(
+        name='Header',
+        parent=styles['Heading2'],
+        fontSize=16,
+        leading=20,
+        spaceBefore=12,
+        spaceAfter=12,
+        textColor=colors.HexColor("#222222"),
+    )
+    normal_style = ParagraphStyle(
+        name='Normal',
+        parent=styles['BodyText'],
+        fontSize=12,
+        leading=16,
+        textColor=colors.HexColor("#555555"),
+    )
+
+    elements = []
+
+    # Title
+    elements.append(Paragraph("Employee Data Analysis Report", title_style))
+
+    # Summary
+    elements.append(Paragraph("Overall Summary", header_style))
+    overall_summary_text = f"""
+    Total Employees: <b>{summary['total_employees']}</b><br/>
+    Average Salary: <b>${summary['overall_avg_salary']:.2f}</b><br/>
+    Average Years at Company: <b>{summary['overall_avg_years']:.2f}</b>
+    """
+    elements.append(Paragraph(overall_summary_text, normal_style))
+    elements.append(Spacer(1, 16))
+
+    # Department Summary Table
+    elements.append(Paragraph("Department-wise Summary", header_style))
+    table_data = [["Department", "Employees", "Avg Salary", "Avg Years @ Company"]]
+    for dept, vals in summary['departments'].items():
+        table_data.append([
+            dept,
+            f"{vals['count']}",
+            f"${vals['avg_salary']:.2f}",
+            f"{vals['avg_years']:.2f}"
+        ])
+
+    table_style = TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#f0f0f0")),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.HexColor("#333333")),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('ALIGN',(1,1),(-1,-1),'CENTER'),
+        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+        ('BOTTOMPADDING', (0,0), (-1,0), 8),
+        ('TOPPADDING', (0,0), (-1,0), 8),
+    ])
+    dept_table = Table(table_data, colWidths=[120, 80, 100, 130])
+    dept_table.setStyle(table_style)
+    elements.append(dept_table)
+    elements.append(Spacer(1, 24))
+
+    # Detailed data table
+    elements.append(Paragraph("Employee Detail Data", header_style))
+    detail_table_data = [["Name", "Department", "Salary", "Years At Company"]]
+    for row in data:
+        detail_table_data.append([
+            row['Name'],
+            row['Department'],
+            f"${float(row['Salary']):,.2f}",
+            f"{row['Years_At_Company']}"
+        ])
+
+    detail_table = Table(detail_table_data, colWidths=[120, 100, 80, 100])
+    detail_table_style = TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#222222")),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('ALIGN',(2,1),(-1,-1),'RIGHT'),
+        ('GRID', (0,0), (-1,-1), 0.25, colors.grey),
+        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+    ])
+    detail_table.setStyle(detail_table_style)
+    elements.append(detail_table)
+
+    # Build PDF
+    doc.build(elements)
+
+if _name_ == "_main_":
+    data = read_data(SAMPLE_CSV_DATA)
+    summary = analyze_data(data)
+    generate_pdf_report(data, summary)
+    print("Sample PDF report generated as 'sample_report.pdf'")
