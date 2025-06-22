@@ -44,4 +44,8 @@ The final block of code checks if the script is being run directly with `if __na
 
 Overall, this script demonstrates clean separation of concerns: one function handles reading, another handles analysis, and a third builds the output. It effectively uses Python’s built-in features alongside ReportLab to produce a practical report. It’s flexible enough to be extended—for example, to accept input from a real CSV file or to visualize the results with charts. This kind of script is useful in HR, finance, or project reporting systems where data must be analyzed and presented clearly.
 
+## **OUTPUT**
+
+![Image](https://github.com/user-attachments/assets/1a1c8483-06e0-4121-a78f-f46ab927a607)
+
 
